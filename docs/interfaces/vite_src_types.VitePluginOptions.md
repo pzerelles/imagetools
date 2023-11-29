@@ -15,6 +15,8 @@
 - [include](vite_src_types.VitePluginOptions.md#include)
 - [removeMetadata](vite_src_types.VitePluginOptions.md#removemetadata)
 - [resolveConfigs](vite_src_types.VitePluginOptions.md#resolveconfigs)
+- [cacheRetention](vite_src_types.VitePluginOptions.md#cacheretention)
+- [cacheDir](vite_src_types.VitePluginOptions.md#cachedir)
 
 ## Properties
 
@@ -177,3 +179,35 @@ undefined
 #### Defined in
 
 [packages/vite/src/types.ts:79](https://github.com/JonasKruckenberg/imagetools/blob/4ebc88f/packages/vite/src/types.ts#L79)
+
+### cacheRetention
+
+• **cacheRetention**: `number`
+
+After what time an unused image will be removed from the cache.
+
+**`Default`**
+
+```ts
+86400
+```
+
+#### Defined in
+
+[packages/vite/src/types.ts:85](https://github.com/JonasKruckenberg/imagetools/blob/4ebc88f/packages/vite/src/types.ts#L97)
+
+### cacheDir
+
+• **cacheDir**: `string`
+
+Where to store generated images on disk as cache.
+
+**`Default`**
+
+```ts
+undefined
+```
+
+#### Defined in
+
+[packages/vite/src/types.ts:85](https://github.com/JonasKruckenberg/imagetools/blob/4ebc88f/packages/vite/src/types.ts#L102)
