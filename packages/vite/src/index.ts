@@ -294,7 +294,7 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
               }
             } catch (e) {
               console.debug(`deleting invalid cache dir ${dirent.name}`)
-              await rm(`${cacheDir}/${dirent.name}`, { recursive: true })
+              await rm(cacheDir, { recursive: true })
             }
           }
         }
