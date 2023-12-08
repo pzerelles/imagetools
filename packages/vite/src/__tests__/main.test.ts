@@ -1,4 +1,4 @@
-import { build, createLogger } from 'vite'
+import { InlineConfig, build, createLogger } from 'vite'
 import { imagetools } from '../index'
 import { join } from 'path'
 import { getFiles, testEntry } from './util'
@@ -7,7 +7,15 @@ import { OutputAsset, OutputChunk, RollupOutput } from 'rollup'
 import { JSDOM } from 'jsdom'
 import sharp from 'sharp'
 import { afterEach, describe, test, expect, it, vi } from 'vitest'
-import { createBasePath } from '../utils'
+import { createBasePath, generateCacheID } from '../utils'
+import { readFile, rm, utimes } from 'fs/promises'
+
+const processPath = process.cwd()
+
+const extractCreated = (path: string) =>
+  readFile(path, { encoding: 'utf8' })
+    .then((d) => JSON.parse(d).created as number)
+    .catch(() => undefined)
 
 expect.extend({ toMatchImageSnapshot })
 
@@ -458,6 +466,65 @@ describe('vite-imagetools', () => {
         expect(window.__IMAGE__).toHaveProperty('hasAlpha')
       })
     })
+    describe('cacheRetention', () => {
+      test('is used to clear cache with default 86400', async () => {
+        const cacheDir = './node_modules/.cache/imagetools_test_cacheRetention'
+        await rm(cacheDir, { recursive: true, force: true })
+        const root = join(__dirname, '__fixtures__')
+        const config: (width: number) => InlineConfig = (width) => ({
+          root,
+          logLevel: 'warn',
+          build: { write: false },
+          plugins: [
+            testEntry(`
+                            import Image from "./pexels-allec-gomes-5195763.png?w=${width}"
+                            export default Image
+                        `),
+            imagetools({ cacheDir })
+          ]
+        })
+        await build(config(300))
+
+        const relativeRoot = root.startsWith(processPath) ? root.slice(processPath.length + 1) : root
+        const cacheID = generateCacheID(`${relativeRoot}/pexels-allec-gomes-5195763.png?w=300`)
+        const indexPath = `${cacheDir}/${cacheID}/index.json`
+        const created = await extractCreated(indexPath)
+        expect(created).toBeTypeOf('number')
+
+        await build(config(200))
+        expect(await extractCreated(indexPath)).toBe(created)
+
+        const date = new Date(Date.now() - 86400000)
+        await utimes(indexPath, date, date)
+        await build(config(200))
+        expect(await extractCreated(indexPath)).not.toBe(created)
+      })
+    })
+    describe('cacheDir', () => {
+      test('is used', async () => {
+        const cacheDir = './node_modules/.cache/imagetools_test_cacheRetention'
+        await rm(cacheDir, { recursive: true, force: true })
+        const root = join(__dirname, '__fixtures__')
+        await build({
+          root,
+          logLevel: 'warn',
+          build: { write: false },
+          plugins: [
+            testEntry(`
+                            import Image from "./pexels-allec-gomes-5195763.png?w=300"
+                            export default Image
+                        `),
+            imagetools({ cacheDir })
+          ]
+        })
+
+        const relativeRoot = root.startsWith(processPath) ? root.slice(processPath.length + 1) : root
+        const cacheID = generateCacheID(`${relativeRoot}/pexels-allec-gomes-5195763.png?w=300`)
+        const indexPath = `${cacheDir}/${cacheID}/index.json`
+        const created = await extractCreated(indexPath)
+        expect(created).toBeTypeOf('number')
+      })
+    })
   })
 
   test('relative import', async () => {
@@ -511,6 +578,28 @@ describe('vite-imagetools', () => {
         imagetools()
       ]
     })) as RollupOutput | RollupOutput[]
+
+    const files = getFiles(bundle, '**.png') as OutputAsset[]
+    expect(files[0].source).toMatchImageSnapshot()
+  })
+
+  test('import with space in identifier and cache', async () => {
+    const cacheDir = './node_modules/.cache/imagetools_test_import_with_space'
+    await rm(cacheDir, { recursive: true, force: true })
+    const config: InlineConfig = {
+      root: join(__dirname, '__fixtures__'),
+      logLevel: 'warn',
+      build: { write: false },
+      plugins: [
+        testEntry(`
+                    import Image from "./with space.png?w=300"
+                    export default Image
+                `),
+        imagetools({ cacheDir })
+      ]
+    }
+    await build(config)
+    const bundle = (await build(config)) as RollupOutput | RollupOutput[]
 
     const files = getFiles(bundle, '**.png') as OutputAsset[]
     expect(files[0].source).toMatchImageSnapshot()

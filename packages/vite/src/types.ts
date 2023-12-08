@@ -90,4 +90,14 @@ export interface VitePluginOptions {
    * @default undefined
    */
   namedExports?: boolean
+
+  /**
+   * For how many seconds to keep transformed images cached. Default is 86400. To disable cache specify 0.
+   */
+  cacheRetention?: number
+
+  /**
+   * Where should the cached images be stored. Default is undefined
+   */
+  cacheDir?: string
 }
