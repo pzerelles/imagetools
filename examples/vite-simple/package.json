@@ -10,6 +10,6 @@
   },
   "devDependencies": {
     "vite": "^5.0.0",
-    "vite-imagetools": "workspace:*"
+    "vite-imagetools": "npm:@pz-mxu/vite-imagetools@^6.2.9"
   }
 }

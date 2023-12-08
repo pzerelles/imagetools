@@ -54,7 +54,7 @@ importers:
         specifier: ^5.0.0
         version: 5.0.0
       vite-imagetools:
-        specifier: workspace:*
+        specifier: npm:@pz-mxu/vite-imagetools@^6.2.9
         version: link:../../packages/vite
 
   packages/core:
@@ -97,7 +97,7 @@ importers:
         specifier: ^5.0.5
         version: 5.0.5(rollup@4.5.0)
       imagetools-core:
-        specifier: workspace:^
+        specifier: npm:@pz-mxu/imagetools-core@^6.0.4
         version: link:../core
     devDependencies:
       '@rollup/plugin-typescript':
