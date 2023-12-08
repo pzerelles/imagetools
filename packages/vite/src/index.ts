@@ -35,7 +35,8 @@ const defaultOptions: VitePluginOptions = {
   include: /^[^?]+\.(avif|gif|heif|jpeg|jpg|png|tiff|webp)(\?.*)?$/,
   exclude: 'public/**/*',
   removeMetadata: true,
-  cacheRetention: 86400
+  cacheRetention: 86400,
+  cacheDir: './node_modules/.cache/imagetools'
 }
 
 interface ProcessedCachableImageMetadata extends ProcessedImageMetadata {
