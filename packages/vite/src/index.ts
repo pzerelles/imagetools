@@ -124,20 +124,25 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
             utimes(`${pluginOptions.cacheDir}/${cacheID}/index.json`, date, date)
 
             for (const metadata of metadatas) {
-              if (viteConfig.command === 'serve') {
-                const imageID = metadata.imageID
-                generatedImages.set(imageID, metadata)
-                metadata.src = basePath + imageID
+              if (directives.has('inline')) {
+                metadata.src = `data:image/${metadata.format};base64,${(await readFile(metadata.imagePath)).toString(
+                  'base64'
+                )}`
               } else {
-                const fileHandle = this.emitFile({
-                  name: basename(pathname, extname(pathname)) + `.${metadata.format}`,
-                  source: await readFile(metadata.imagePath),
-                  type: 'asset'
-                })
+                if (viteConfig.command === 'serve') {
+                  const imageID = metadata.imageID
+                  generatedImages.set(imageID, metadata)
+                  metadata.src = basePath + imageID
+                } else {
+                  const fileHandle = this.emitFile({
+                    name: basename(pathname, extname(pathname)) + `.${metadata.format}`,
+                    source: await readFile(metadata.imagePath),
+                    type: 'asset'
+                  })
 
-                metadata.src = `__VITE_ASSET__${fileHandle}__`
+                  metadata.src = `__VITE_ASSET__${fileHandle}__`
+                }
               }
-
               outputMetadatas.push(metadata)
             }
           }
@@ -179,17 +184,21 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
           const imageBuffer = await image.toBuffer()
           const imageID = await generateImageID(srcURL, config, imageBuffer)
 
-          if (viteConfig.command === 'serve') {
-            generatedImages.set(imageID, image)
-            metadata.src = basePath + imageID
+          if (directives.has('inline')) {
+            metadata.src = `data:image/${metadata.format};base64,${imageBuffer.toString('base64')}`
           } else {
-            const fileHandle = this.emitFile({
-              name: basename(pathname, extname(pathname)) + `.${metadata.format}`,
-              source: imageBuffer,
-              type: 'asset'
-            })
+            if (viteConfig.command === 'serve') {
+              generatedImages.set(imageID, image)
+              metadata.src = basePath + imageID
+            } else {
+              const fileHandle = this.emitFile({
+                name: basename(pathname, extname(pathname)) + `.${metadata.format}`,
+                source: imageBuffer,
+                type: 'asset'
+              })
 
-            metadata.src = `__VITE_ASSET__${fileHandle}__`
+              metadata.src = `__VITE_ASSET__${fileHandle}__`
+            }
           }
 
           metadata.imageID = imageID
