@@ -29,9 +29,9 @@ export function hash(keyParts: Array<string | NodeJS.ArrayBufferView>) {
   return hash.digest('hex')
 }
 
-export const checksumFile = (algorithm: string, path: string) => {
+export const hashFile = (path: string) => {
   return new Promise<string>(function (resolve, reject) {
-    const hash = createHash(algorithm).setEncoding('hex')
+    const hash = createHash('sha1').setEncoding('hex')
     createReadStream(path)
       .pipe(hash)
       .on('error', reject)

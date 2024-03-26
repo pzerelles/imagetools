@@ -18,7 +18,7 @@ import {
 } from 'imagetools-core'
 import { createFilter, dataToEsm } from '@rollup/pluginutils'
 import sharp, { type Metadata, type Sharp } from 'sharp'
-import { checksumFile, createBasePath, hash, generateImageID } from './utils.js'
+import { hashFile, createBasePath, hash, generateImageID } from './utils.js'
 import type { VitePluginOptions } from './types.js'
 
 export type {
@@ -118,12 +118,12 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
       const cacheID = cacheOptions.enabled ? hash([relativeID]) : undefined
       if (cacheID && cacheOptions.dir && existsSync(`${cacheOptions.dir}/${cacheID}/index.json`)) {
         try {
-          const srcChecksum = await checksumFile('sha1', pathname)
-          const { checksum, metadatas } = JSON.parse(
+          const srcHash = await hashFile(pathname)
+          const { dataHash, metadatas } = JSON.parse(
             await readFile(`${cacheOptions.dir}/${cacheID}/index.json`, { encoding: 'utf8' })
           )
 
-          if (srcChecksum === checksum) {
+          if (srcHash === dataHash) {
             const date = new Date()
             utimes(`${cacheOptions.dir}/${cacheID}/index.json`, date, date)
 
@@ -206,7 +206,7 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
           const relativeID = id.startsWith(processPath) ? id.slice(processPath.length + 1) : id
           const cacheID = hash([relativeID])
           try {
-            const checksum = await checksumFile('sha1', pathname)
+            const dataHash = await hashFile(pathname)
             await mkdir(`${cacheOptions.dir}/${cacheID}`, { recursive: true })
             await Promise.all(
               outputMetadatas.map(async (metadata) => {
@@ -222,7 +222,7 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
             await writeFile(
               `${cacheOptions.dir}/${cacheID}/index.json`,
               JSON.stringify({
-                checksum,
+                dataHash,
                 created: Date.now(),
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 metadatas: outputMetadatas.map(({ src, image, ...metadata }) => metadata)
