@@ -62,7 +62,7 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
   let viteConfig: ResolvedConfig
   let basePath: string
 
-  const processPath = process.cwd()
+  const cwd = process.cwd()
 
   const generatedImages = new Map<string, Sharp | ProcessedCachableImageMetadata>()
 
@@ -114,7 +114,7 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
         error: (msg) => this.error(msg)
       }
 
-      const relativeID = id.startsWith(processPath) ? id.slice(processPath.length + 1) : id
+      const relativeID = id.startsWith(cwd) ? id.slice(cwd.length + 1) : id
       const cacheID = cacheOptions.enabled ? hash([relativeID]) : undefined
       if (cacheID && cacheOptions.dir && existsSync(`${cacheOptions.dir}/${cacheID}/index.json`)) {
         try {
@@ -203,7 +203,7 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
         }
 
         if (cacheOptions.enabled) {
-          const relativeID = id.startsWith(processPath) ? id.slice(processPath.length + 1) : id
+          const relativeID = id.startsWith(cwd) ? id.slice(cwd.length + 1) : id
           const cacheID = hash([relativeID])
           try {
             const dataHash = await hashFile(pathname)
@@ -285,6 +285,7 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
     },
 
     async buildEnd(error) {
+      // clear expired cache entries
       if (!error && cacheOptions.enabled && cacheOptions.retention && viteConfig.command !== 'serve') {
         const dir = await opendir(cacheOptions.dir)
         for await (const dirent of dir) {

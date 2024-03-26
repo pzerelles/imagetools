@@ -10,7 +10,7 @@ import { afterEach, describe, test, expect, it, vi } from 'vitest'
 import { createBasePath, hash } from '../utils'
 import { readFile, rm, utimes } from 'fs/promises'
 
-const processPath = process.cwd()
+const cwd = process.cwd()
 
 const extractCreated = (path: string) =>
   readFile(path, { encoding: 'utf8' })
@@ -485,7 +485,7 @@ describe('vite-imagetools', () => {
         })
         await build(config(300))
 
-        const relativeRoot = root.startsWith(processPath) ? root.slice(processPath.length + 1) : root
+        const relativeRoot = root.startsWith(cwd) ? root.slice(cwd.length + 1) : root
         const cacheID = hash([`${relativeRoot}/pexels-allec-gomes-5195763.png?w=300`])
         const indexPath = `${dir}/${cacheID}/index.json`
         const created = await extractCreated(indexPath)
@@ -518,7 +518,7 @@ describe('vite-imagetools', () => {
           ]
         })
 
-        const relativeRoot = root.startsWith(processPath) ? root.slice(processPath.length + 1) : root
+        const relativeRoot = root.startsWith(cwd) ? root.slice(cwd.length + 1) : root
         const cacheID = hash([`${relativeRoot}/pexels-allec-gomes-5195763.png?w=300`])
         const indexPath = `${dir}/${cacheID}/index.json`
         const created = await extractCreated(indexPath)
