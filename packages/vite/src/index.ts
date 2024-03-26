@@ -34,8 +34,7 @@ export type {
 const defaultOptions: VitePluginOptions = {
   include: /^[^?]+\.(avif|gif|heif|jpeg|jpg|png|tiff|webp)(\?.*)?$/,
   exclude: 'public/**/*',
-  removeMetadata: true,
-  cacheRetention: 86400
+  removeMetadata: true
 }
 
 interface ProcessedCachableImageMetadata extends ProcessedImageMetadata {
@@ -46,6 +45,11 @@ export * from 'imagetools-core'
 
 export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin {
   const pluginOptions: VitePluginOptions = { ...defaultOptions, ...userOptions }
+  const cacheOptions = {
+    enabled: pluginOptions.cache?.enabled ?? true,
+    dir: pluginOptions.cache?.dir ?? './node_modules/.cache/imagetools',
+    retention: pluginOptions.cache?.retention ?? 86400
+  }
 
   const filter = createFilter(pluginOptions.include, pluginOptions.exclude)
 
@@ -111,17 +115,17 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
       }
 
       const relativeID = id.startsWith(processPath) ? id.slice(processPath.length + 1) : id
-      const cacheID = pluginOptions.cacheDir ? generateCacheID(relativeID) : undefined
-      if (cacheID && pluginOptions.cacheDir && existsSync(`${pluginOptions.cacheDir}/${cacheID}/index.json`)) {
+      const cacheID = cacheOptions.enabled ? generateCacheID(relativeID) : undefined
+      if (cacheID && cacheOptions.dir && existsSync(`${cacheOptions.dir}/${cacheID}/index.json`)) {
         try {
           const srcChecksum = await checksumFile('sha1', pathname)
           const { checksum, metadatas } = JSON.parse(
-            await readFile(`${pluginOptions.cacheDir}/${cacheID}/index.json`, { encoding: 'utf8' })
+            await readFile(`${cacheOptions.dir}/${cacheID}/index.json`, { encoding: 'utf8' })
           )
 
           if (srcChecksum === checksum) {
             const date = new Date()
-            utimes(`${pluginOptions.cacheDir}/${cacheID}/index.json`, date, date)
+            utimes(`${cacheOptions.dir}/${cacheID}/index.json`, date, date)
 
             for (const metadata of metadatas) {
               if (viteConfig.command === 'serve') {
@@ -198,16 +202,16 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
           outputMetadatas.push(metadata as ProcessedImageMetadata)
         }
 
-        if (pluginOptions.cacheDir) {
+        if (cacheOptions.enabled) {
           const relativeID = id.startsWith(processPath) ? id.slice(processPath.length + 1) : id
           const cacheID = generateCacheID(relativeID)
           try {
             const checksum = await checksumFile('sha1', pathname)
-            await mkdir(`${pluginOptions.cacheDir}/${cacheID}`, { recursive: true })
+            await mkdir(`${cacheOptions.dir}/${cacheID}`, { recursive: true })
             await Promise.all(
               outputMetadatas.map(async (metadata) => {
                 const { format, image, imageID } = metadata
-                const imagePath = `${pluginOptions.cacheDir}/${cacheID}/${imageID}.${format}`
+                const imagePath = `${cacheOptions.dir}/${cacheID}/${imageID}.${format}`
                 if (image) await writeFile(imagePath, await image.toBuffer())
                 metadata.imagePath = imagePath
                 if (viteConfig.command === 'serve') {
@@ -216,7 +220,7 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
               })
             )
             await writeFile(
-              `${pluginOptions.cacheDir}/${cacheID}/index.json`,
+              `${cacheOptions.dir}/${cacheID}/index.json`,
               JSON.stringify({
                 checksum,
                 created: Date.now(),
@@ -227,7 +231,7 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
             )
           } catch (e) {
             console.debug(`failed to create cache for ${cacheID}`)
-            await rm(`${pluginOptions.cacheDir}/${cacheID}`, { recursive: true })
+            await rm(`${cacheOptions.dir}/${cacheID}`, { recursive: true })
           }
         }
       }
@@ -281,14 +285,14 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
     },
 
     async buildEnd(error) {
-      if (!error && pluginOptions.cacheDir && pluginOptions.cacheRetention && viteConfig.command !== 'serve') {
-        const dir = await opendir(pluginOptions.cacheDir)
+      if (!error && cacheOptions.enabled && cacheOptions.retention && viteConfig.command !== 'serve') {
+        const dir = await opendir(cacheOptions.dir)
         for await (const dirent of dir) {
           if (dirent.isDirectory()) {
-            const cacheDir = `${pluginOptions.cacheDir}/${dirent.name}`
+            const cacheDir = `${cacheOptions.dir}/${dirent.name}`
             try {
               const stats = await stat(`${cacheDir}/index.json`)
-              if (Date.now() - stats.mtimeMs > pluginOptions.cacheRetention * 1000) {
+              if (Date.now() - stats.mtimeMs > cacheOptions.retention * 1000) {
                 console.debug(`deleting stale cache dir ${dirent.name}`)
                 await rm(cacheDir, { recursive: true })
               }

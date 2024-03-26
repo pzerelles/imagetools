@@ -466,10 +466,10 @@ describe('vite-imagetools', () => {
         expect(window.__IMAGE__).toHaveProperty('hasAlpha')
       })
     })
-    describe('cacheRetention', () => {
+    describe('cache.retention', () => {
       test('is used to clear cache with default 86400', async () => {
-        const cacheDir = './node_modules/.cache/imagetools_test_cacheRetention'
-        await rm(cacheDir, { recursive: true, force: true })
+        const dir = './node_modules/.cache/imagetools_test_cacheRetention'
+        await rm(dir, { recursive: true, force: true })
         const root = join(__dirname, '__fixtures__')
         const config: (width: number) => InlineConfig = (width) => ({
           root,
@@ -480,14 +480,14 @@ describe('vite-imagetools', () => {
                             import Image from "./pexels-allec-gomes-5195763.png?w=${width}"
                             export default Image
                         `),
-            imagetools({ cacheDir })
+            imagetools({ cache: { dir } })
           ]
         })
         await build(config(300))
 
         const relativeRoot = root.startsWith(processPath) ? root.slice(processPath.length + 1) : root
         const cacheID = generateCacheID(`${relativeRoot}/pexels-allec-gomes-5195763.png?w=300`)
-        const indexPath = `${cacheDir}/${cacheID}/index.json`
+        const indexPath = `${dir}/${cacheID}/index.json`
         const created = await extractCreated(indexPath)
         expect(created).toBeTypeOf('number')
 
@@ -500,10 +500,10 @@ describe('vite-imagetools', () => {
         expect(await extractCreated(indexPath)).not.toBe(created)
       })
     })
-    describe('cacheDir', () => {
+    describe('cache.dir', () => {
       test('is used', async () => {
-        const cacheDir = './node_modules/.cache/imagetools_test_cacheRetention'
-        await rm(cacheDir, { recursive: true, force: true })
+        const dir = './node_modules/.cache/imagetools_test_cacheRetention'
+        await rm(dir, { recursive: true, force: true })
         const root = join(__dirname, '__fixtures__')
         await build({
           root,
@@ -514,13 +514,13 @@ describe('vite-imagetools', () => {
                             import Image from "./pexels-allec-gomes-5195763.png?w=300"
                             export default Image
                         `),
-            imagetools({ cacheDir })
+            imagetools({ cache: { dir } })
           ]
         })
 
         const relativeRoot = root.startsWith(processPath) ? root.slice(processPath.length + 1) : root
         const cacheID = generateCacheID(`${relativeRoot}/pexels-allec-gomes-5195763.png?w=300`)
-        const indexPath = `${cacheDir}/${cacheID}/index.json`
+        const indexPath = `${dir}/${cacheID}/index.json`
         const created = await extractCreated(indexPath)
         expect(created).toBeTypeOf('number')
       })
@@ -584,8 +584,8 @@ describe('vite-imagetools', () => {
   })
 
   test('import with space in identifier and cache', async () => {
-    const cacheDir = './node_modules/.cache/imagetools_test_import_with_space'
-    await rm(cacheDir, { recursive: true, force: true })
+    const dir = './node_modules/.cache/imagetools_test_import_with_space'
+    await rm(dir, { recursive: true, force: true })
     const config: InlineConfig = {
       root: join(__dirname, '__fixtures__'),
       logLevel: 'warn',
@@ -595,7 +595,7 @@ describe('vite-imagetools', () => {
                     import Image from "./with space.png?w=300"
                     export default Image
                 `),
-        imagetools({ cacheDir })
+        imagetools({ cache: { dir } })
       ]
     }
     await build(config)
