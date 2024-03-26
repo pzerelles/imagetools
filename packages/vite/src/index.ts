@@ -18,7 +18,7 @@ import {
 } from 'imagetools-core'
 import { createFilter, dataToEsm } from '@rollup/pluginutils'
 import sharp, { type Metadata, type Sharp } from 'sharp'
-import { checksumFile, createBasePath, generateCacheID, generateImageID } from './utils.js'
+import { checksumFile, createBasePath, hash, generateImageID } from './utils.js'
 import type { VitePluginOptions } from './types.js'
 
 export type {
@@ -115,7 +115,7 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
       }
 
       const relativeID = id.startsWith(processPath) ? id.slice(processPath.length + 1) : id
-      const cacheID = cacheOptions.enabled ? generateCacheID(relativeID) : undefined
+      const cacheID = cacheOptions.enabled ? hash([relativeID]) : undefined
       if (cacheID && cacheOptions.dir && existsSync(`${cacheOptions.dir}/${cacheID}/index.json`)) {
         try {
           const srcChecksum = await checksumFile('sha1', pathname)
@@ -204,7 +204,7 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
 
         if (cacheOptions.enabled) {
           const relativeID = id.startsWith(processPath) ? id.slice(processPath.length + 1) : id
-          const cacheID = generateCacheID(relativeID)
+          const cacheID = hash([relativeID])
           try {
             const checksum = await checksumFile('sha1', pathname)
             await mkdir(`${cacheOptions.dir}/${cacheID}`, { recursive: true })

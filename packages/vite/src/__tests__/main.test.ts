@@ -7,7 +7,7 @@ import { OutputAsset, OutputChunk, RollupOutput } from 'rollup'
 import { JSDOM } from 'jsdom'
 import sharp from 'sharp'
 import { afterEach, describe, test, expect, it, vi } from 'vitest'
-import { createBasePath, generateCacheID } from '../utils'
+import { createBasePath, hash } from '../utils'
 import { readFile, rm, utimes } from 'fs/promises'
 
 const processPath = process.cwd()
@@ -486,7 +486,7 @@ describe('vite-imagetools', () => {
         await build(config(300))
 
         const relativeRoot = root.startsWith(processPath) ? root.slice(processPath.length + 1) : root
-        const cacheID = generateCacheID(`${relativeRoot}/pexels-allec-gomes-5195763.png?w=300`)
+        const cacheID = hash([`${relativeRoot}/pexels-allec-gomes-5195763.png?w=300`])
         const indexPath = `${dir}/${cacheID}/index.json`
         const created = await extractCreated(indexPath)
         expect(created).toBeTypeOf('number')
@@ -519,7 +519,7 @@ describe('vite-imagetools', () => {
         })
 
         const relativeRoot = root.startsWith(processPath) ? root.slice(processPath.length + 1) : root
-        const cacheID = generateCacheID(`${relativeRoot}/pexels-allec-gomes-5195763.png?w=300`)
+        const cacheID = hash([`${relativeRoot}/pexels-allec-gomes-5195763.png?w=300`])
         const indexPath = `${dir}/${cacheID}/index.json`
         const created = await extractCreated(indexPath)
         expect(created).toBeTypeOf('number')

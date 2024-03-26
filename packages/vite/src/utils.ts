@@ -21,15 +21,13 @@ export async function generateImageID(url: URL, config: ImageConfig, imageBuffer
   return hash([baseURL.href, JSON.stringify(config), mtime.getTime().toString()])
 }
 
-function hash(keyParts: Array<string | NodeJS.ArrayBufferView>) {
+export function hash(keyParts: Array<string | NodeJS.ArrayBufferView>) {
   let hash = createHash('sha1')
   for (const keyPart of keyParts) {
     hash = hash.update(keyPart)
   }
   return hash.digest('hex')
 }
-
-export const generateCacheID = (path: string) => createHash('sha1').update(path).digest('hex')
 
 export const checksumFile = (algorithm: string, path: string) => {
   return new Promise<string>(function (resolve, reject) {
