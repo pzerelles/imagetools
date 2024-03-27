@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { statSync } from 'node:fs'
 import type { ImageConfig } from 'imagetools-core'
-import { createReadStream } from 'node:fs'
 
 export const createBasePath = (base?: string) => {
   return (base?.replace(/\/$/, '') || '') + '/@imagetools/'
@@ -27,19 +26,4 @@ function hash(keyParts: Array<string | NodeJS.ArrayBufferView>) {
     hash = hash.update(keyPart)
   }
   return hash.digest('hex')
-}
-
-export const generateCacheID = (path: string) => createHash('sha1').update(path).digest('hex')
-
-export const checksumFile = (algorithm: string, path: string) => {
-  return new Promise<string>(function (resolve, reject) {
-    const hash = createHash(algorithm).setEncoding('hex')
-    createReadStream(path)
-      .pipe(hash)
-      .on('error', reject)
-      .on('finish', () => {
-        hash.end()
-        resolve(hash.digest('hex'))
-      })
-  })
 }

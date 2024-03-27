@@ -91,13 +91,20 @@ export interface VitePluginOptions {
    */
   namedExports?: boolean
 
-  /**
-   * For how many seconds to keep transformed images cached. Default is 86400. To disable cache specify 0.
-   */
-  cacheRetention?: number
+  cache?: {
+    /**
+     * Should the image cache be enabled. Default is true
+     */
+    enabled?: boolean
 
-  /**
-   * Where should the cached images be stored. Default is undefined
-   */
-  cacheDir?: string
+    /**
+     * For how many seconds to keep transformed images cached. Default is 86400. To disable cache specify 0.
+     */
+    retention?: number
+
+    /**
+     * Where should the cached images be stored. Default is './node_modules/.cache/imagetools'
+     */
+    dir?: string
+  }
 }

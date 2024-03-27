@@ -7,15 +7,9 @@ import { OutputAsset, OutputChunk, RollupOutput } from 'rollup'
 import { JSDOM } from 'jsdom'
 import sharp from 'sharp'
 import { afterEach, describe, test, expect, it, vi } from 'vitest'
-import { createBasePath, generateCacheID } from '../utils'
-import { readFile, rm, utimes } from 'fs/promises'
-
-const processPath = process.cwd()
-
-const extractCreated = (path: string) =>
-  readFile(path, { encoding: 'utf8' })
-    .then((d) => JSON.parse(d).created as number)
-    .catch(() => undefined)
+import { createBasePath } from '../utils'
+import { existsSync } from 'fs'
+import { rm, utimes } from 'fs/promises'
 
 expect.extend({ toMatchImageSnapshot })
 
@@ -243,7 +237,8 @@ describe('vite-imagetools', () => {
                     return (image) => image
                   }
                 ]
-              }
+              },
+              cache: { enabled: false }
             })
           ]
         })
@@ -271,7 +266,8 @@ describe('vite-imagetools', () => {
                     return (image) => image
                   }
                 ]
-              }
+              },
+              cache: { enabled: false }
             })
           ]
         })
@@ -297,7 +293,8 @@ describe('vite-imagetools', () => {
                       return (image) => image
                     }
                   ]
-                }
+                },
+                cache: { enabled: false }
               })
             ]
           })
@@ -335,6 +332,8 @@ describe('vite-imagetools', () => {
       })
 
       test('false leaves private metadata', async () => {
+        const dir = './node_modules/.cache/imagetools_test_false_leaves_private_metadata'
+        await rm(dir, { recursive: true, force: true })
         const bundle = (await build({
           root: join(__dirname, '__fixtures__'),
           logLevel: 'warn',
@@ -345,7 +344,8 @@ describe('vite-imagetools', () => {
                             window.__IMAGE__ = Image
                         `),
             imagetools({
-              removeMetadata: false
+              removeMetadata: false,
+              cache: { dir }
             })
           ]
         })) as RollupOutput | RollupOutput[]
@@ -466,10 +466,10 @@ describe('vite-imagetools', () => {
         expect(window.__IMAGE__).toHaveProperty('hasAlpha')
       })
     })
-    describe('cacheRetention', () => {
+    describe('cache.retention', () => {
       test('is used to clear cache with default 86400', async () => {
-        const cacheDir = './node_modules/.cache/imagetools_test_cacheRetention'
-        await rm(cacheDir, { recursive: true, force: true })
+        const dir = './node_modules/.cache/imagetools_test_cache_retention'
+        await rm(dir, { recursive: true, force: true })
         const root = join(__dirname, '__fixtures__')
         const config: (width: number) => InlineConfig = (width) => ({
           root,
@@ -480,30 +480,25 @@ describe('vite-imagetools', () => {
                             import Image from "./pexels-allec-gomes-5195763.png?w=${width}"
                             export default Image
                         `),
-            imagetools({ cacheDir })
+            imagetools({ cache: { dir } })
           ]
         })
         await build(config(300))
-
-        const relativeRoot = root.startsWith(processPath) ? root.slice(processPath.length + 1) : root
-        const cacheID = generateCacheID(`${relativeRoot}/pexels-allec-gomes-5195763.png?w=300`)
-        const indexPath = `${cacheDir}/${cacheID}/index.json`
-        const created = await extractCreated(indexPath)
-        expect(created).toBeTypeOf('number')
+        expect(existsSync(`${dir}/436a701f0301386167e47006781708d0ed589f03`)).toBe(true)
 
         await build(config(200))
-        expect(await extractCreated(indexPath)).toBe(created)
+        expect(existsSync(`${dir}/b8e9e77ecb7bc3cb7b552021ca9c9352814cc8de`)).toBe(true)
 
         const date = new Date(Date.now() - 86400000)
-        await utimes(indexPath, date, date)
+        await utimes(`${dir}/436a701f0301386167e47006781708d0ed589f03`, date, date)
         await build(config(200))
-        expect(await extractCreated(indexPath)).not.toBe(created)
+        expect(existsSync(`${dir}/436a701f0301386167e47006781708d0ed589f03`)).toBe(false)
       })
     })
-    describe('cacheDir', () => {
+    describe('cache.dir', () => {
       test('is used', async () => {
-        const cacheDir = './node_modules/.cache/imagetools_test_cacheRetention'
-        await rm(cacheDir, { recursive: true, force: true })
+        const dir = './node_modules/.cache/imagetools_test_cache_dir'
+        await rm(dir, { recursive: true, force: true })
         const root = join(__dirname, '__fixtures__')
         await build({
           root,
@@ -514,15 +509,11 @@ describe('vite-imagetools', () => {
                             import Image from "./pexels-allec-gomes-5195763.png?w=300"
                             export default Image
                         `),
-            imagetools({ cacheDir })
+            imagetools({ cache: { dir } })
           ]
         })
 
-        const relativeRoot = root.startsWith(processPath) ? root.slice(processPath.length + 1) : root
-        const cacheID = generateCacheID(`${relativeRoot}/pexels-allec-gomes-5195763.png?w=300`)
-        const indexPath = `${cacheDir}/${cacheID}/index.json`
-        const created = await extractCreated(indexPath)
-        expect(created).toBeTypeOf('number')
+        expect(existsSync(`${dir}/436a701f0301386167e47006781708d0ed589f03`)).toBe(true)
       })
     })
   })
@@ -584,8 +575,8 @@ describe('vite-imagetools', () => {
   })
 
   test('import with space in identifier and cache', async () => {
-    const cacheDir = './node_modules/.cache/imagetools_test_import_with_space'
-    await rm(cacheDir, { recursive: true, force: true })
+    const dir = './node_modules/.cache/imagetools_test_import_with_space'
+    await rm(dir, { recursive: true, force: true })
     const config: InlineConfig = {
       root: join(__dirname, '__fixtures__'),
       logLevel: 'warn',
@@ -595,7 +586,7 @@ describe('vite-imagetools', () => {
                     import Image from "./with space.png?w=300"
                     export default Image
                 `),
-        imagetools({ cacheDir })
+        imagetools({ cache: { dir } })
       ]
     }
     await build(config)

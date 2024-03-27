@@ -3,9 +3,10 @@
 To speed up a build pipeline with many images, the generated images can be cached on disk. 
 If the source image changes, the cached images will be regenerated.
 
-## How to enable caching
+## How to configure caching
 
-To enable caching, the cache directory has to be configured.
+Caching is enabled by default and uses './node_modules/.cache/imagetools' as cache directory. 
+You can disable caching or change the directory with options.
 
 ```
 // vite.config.js, etc
@@ -13,7 +14,10 @@ To enable caching, the cache directory has to be configured.
     plugins: [
       react(),
       imagetools({
-        cacheDir: './node_modules/.cache/imagetools'
+        cache: {
+          enabled: true,
+          dir: './node_modules/.cache/imagetools'
+        }
       })
     ]
 ...
@@ -23,7 +27,7 @@ To enable caching, the cache directory has to be configured.
 
 When an image is no longer there or the transformation parameters change, the previously
 cached images will be removed after a configurable retention period.
-The default retention is 86400 seconds. A value of 0 will disable this mechanism.
+The default retention is 1 day (86400 seconds). A value of 0 will disable this mechanism.
 
 ```
 // vite.config.js, etc
@@ -31,8 +35,11 @@ The default retention is 86400 seconds. A value of 0 will disable this mechanism
     plugins: [
       react(),
       imagetools({
-        cacheDir: './node_modules/.cache/imagetools',
-        cacheRetention: 172800
+        cache: {
+          enabled: true,
+          dir: './node_modules/.cache/imagetools',
+          retention: 172800
+        }
       })
     ]
 ...
