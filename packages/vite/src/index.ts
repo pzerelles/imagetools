@@ -1,4 +1,7 @@
 import { basename, extname } from 'node:path'
+import { join } from 'node:path/posix'
+import { existsSync, mkdirSync, createReadStream } from 'node:fs'
+import { utimes, writeFile, readFile, opendir, stat, rm } from 'node:fs/promises'
 import type { Plugin, ResolvedConfig } from 'vite'
 import {
   applyTransforms,
@@ -12,7 +15,8 @@ import {
   resolveConfigs,
   type Logger,
   type OutputFormat,
-  type ProcessedImageMetadata
+  type ProcessedImageMetadata,
+  type ImageMetadata
 } from 'imagetools-core'
 import { createFilter, dataToEsm } from '@rollup/pluginutils'
 import sharp, { type Metadata, type Sharp } from 'sharp'
@@ -40,6 +44,13 @@ export * from 'imagetools-core'
 export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin {
   const pluginOptions: VitePluginOptions = { ...defaultOptions, ...userOptions }
 
+  const cacheOptions = {
+    enabled: pluginOptions.cache?.enabled ?? true,
+    dir: pluginOptions.cache?.dir ?? './node_modules/.cache/imagetools',
+    retention: pluginOptions.cache?.retention ?? 86400
+  }
+  mkdirSync(`${cacheOptions.dir}`, { recursive: true })
+
   const filter = createFilter(pluginOptions.include, pluginOptions.exclude)
 
   const transformFactories = pluginOptions.extendTransforms ? pluginOptions.extendTransforms(builtins) : builtins
@@ -51,7 +62,7 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
   let viteConfig: ResolvedConfig
   let basePath: string
 
-  const generatedImages = new Map<string, Sharp>()
+  const generatedImages = new Map<string, { image?: Sharp; metadata: ImageMetadata }>()
 
   return {
     name: 'imagetools',
@@ -122,18 +133,39 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
         error: (msg) => this.error(msg)
       }
 
+      const imageBuffer = await img.clone().toBuffer()
+
       for (const config of imageConfigs) {
-        const { transforms } = generateTransforms(config, transformFactories, srcURL.searchParams, logger)
-        const { image, metadata } = await applyTransforms(transforms, img.clone(), pluginOptions.removeMetadata)
+        const id = await generateImageID(srcURL, config, imageBuffer)
+        let image: Sharp | undefined
+        let metadata: ImageMetadata
+
+        if (cacheOptions.enabled && existsSync(`${cacheOptions.dir}/${id}`)) {
+          const imagePath = `${cacheOptions.dir}/${id}`
+          metadata = (await sharp(imagePath).metadata()) as ImageMetadata
+          metadata.imagePath = imagePath
+          const date = new Date()
+          utimes(imagePath, date, date)
+        } else {
+          const { transforms } = generateTransforms(config, transformFactories, srcURL.searchParams, logger)
+          const res = await applyTransforms(transforms, img, pluginOptions.removeMetadata)
+          metadata = res.metadata
+          if (cacheOptions.enabled) {
+            const imagePath = `${cacheOptions.dir}/${id}`
+            await writeFile(imagePath, await res.image.toBuffer())
+            metadata.imagePath = imagePath
+          } else {
+            image = res.image
+          }
+        }
 
         if (viteConfig.command === 'serve') {
-          const id = await generateImageID(srcURL, config, img)
-          generatedImages.set(id, image)
-          metadata.src = path.posix.join(viteConfig?.server?.origin ?? '', basePath) + id
+          generatedImages.set(id, { image, metadata })
+          metadata.src = join(viteConfig?.server?.origin ?? '', basePath) + id
         } else {
           const fileHandle = this.emitFile({
             name: basename(pathname, extname(pathname)) + `.${metadata.format}`,
-            source: await image.toBuffer(),
+            source: image ? await image.toBuffer() : await readFile(metadata.imagePath as string),
             type: 'asset'
           })
 
@@ -167,22 +199,44 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
         if (req.url?.startsWith(basePath)) {
           const [, id] = req.url.split(basePath)
 
-          const image = generatedImages.get(id)
+          const { image, metadata } = generatedImages.get(id) ?? {}
 
-          if (!image)
+          if (!metadata)
             throw new Error(`vite-imagetools cannot find image with id "${id}" this is likely an internal error`)
+
+          res.setHeader('Cache-Control', 'max-age=360000')
+
+          if (!image) {
+            res.setHeader('Content-Type', `image/${metadata.format}`)
+            return createReadStream(metadata.imagePath as string).pipe(res)
+          }
 
           if (pluginOptions.removeMetadata === false) {
             image.withMetadata()
           }
 
           res.setHeader('Content-Type', `image/${getMetadata(image, 'format')}`)
-          res.setHeader('Cache-Control', 'max-age=360000')
           return image.clone().pipe(res)
         }
 
         next()
       })
+    },
+
+    async buildEnd(error) {
+      if (!error && cacheOptions.enabled && cacheOptions.retention && viteConfig.command !== 'serve') {
+        const dir = await opendir(cacheOptions.dir)
+        for await (const dirent of dir) {
+          if (dirent.isFile()) {
+            const imagePath = `${cacheOptions.dir}/${dirent.name}`
+            const stats = await stat(imagePath)
+            if (Date.now() - stats.mtimeMs > cacheOptions.retention * 1000) {
+              console.debug(`deleting stale cached image ${dirent.name}`)
+              await rm(imagePath)
+            }
+          }
+        }
+      }
     }
   }
 }

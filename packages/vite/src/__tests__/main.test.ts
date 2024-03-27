@@ -1,4 +1,4 @@
-import { build, createLogger } from 'vite'
+import { InlineConfig, build, createLogger } from 'vite'
 import { imagetools } from '../index'
 import { join } from 'path'
 import { getFiles, testEntry } from './util'
@@ -8,6 +8,8 @@ import { JSDOM } from 'jsdom'
 import sharp from 'sharp'
 import { afterEach, describe, test, expect, it, vi } from 'vitest'
 import { createBasePath } from '../utils'
+import { existsSync } from 'fs'
+import { rm, utimes, readdir } from 'fs/promises'
 
 expect.extend({ toMatchImageSnapshot })
 
@@ -235,7 +237,8 @@ describe('vite-imagetools', () => {
                     return (image) => image
                   }
                 ]
-              }
+              },
+              cache: { enabled: false }
             })
           ]
         })
@@ -263,7 +266,8 @@ describe('vite-imagetools', () => {
                     return (image) => image
                   }
                 ]
-              }
+              },
+              cache: { enabled: false }
             })
           ]
         })
@@ -289,7 +293,8 @@ describe('vite-imagetools', () => {
                       return (image) => image
                     }
                   ]
-                }
+                },
+                cache: { enabled: false }
               })
             ]
           })
@@ -327,6 +332,8 @@ describe('vite-imagetools', () => {
       })
 
       test('false leaves private metadata', async () => {
+        const dir = './node_modules/.cache/imagetools_test_false_leaves_private_metadata'
+        await rm(dir, { recursive: true, force: true })
         const bundle = (await build({
           root: join(__dirname, '__fixtures__'),
           logLevel: 'warn',
@@ -337,7 +344,8 @@ describe('vite-imagetools', () => {
                             window.__IMAGE__ = Image
                         `),
             imagetools({
-              removeMetadata: false
+              removeMetadata: false,
+              cache: { dir }
             })
           ]
         })) as RollupOutput | RollupOutput[]
@@ -458,6 +466,59 @@ describe('vite-imagetools', () => {
         expect(window.__IMAGE__).toHaveProperty('hasAlpha')
       })
     })
+    describe('cache.retention', () => {
+      test('is used to clear cache with default 86400', async () => {
+        const dir = './node_modules/.cache/imagetools_test_cache_retention'
+        await rm(dir, { recursive: true, force: true })
+        const root = join(__dirname, '__fixtures__')
+        const config: (width: number) => InlineConfig = (width) => ({
+          root,
+          logLevel: 'warn',
+          build: { write: false },
+          plugins: [
+            testEntry(`
+                            import Image from "./pexels-allec-gomes-5195763.png?w=${width}"
+                            export default Image
+                        `),
+            imagetools({ cache: { dir } })
+          ]
+        })
+        await build(config(300))
+        const image_300 = (await readdir(dir))[0]
+        expect(image_300).toBeTypeOf('string')
+
+        await build(config(200))
+        const image_200 = (await readdir(dir)).find((name) => name !== image_300)?.[0]
+        expect(image_200).toBeTypeOf('string')
+
+        const date = new Date(Date.now() - 86400000)
+        await utimes(`${dir}/${image_300}`, date, date)
+        await build(config(200))
+        expect(existsSync(`${dir}/${image_300}`)).toBe(false)
+      })
+    })
+    describe('cache.dir', () => {
+      test('is used', async () => {
+        const dir = './node_modules/.cache/imagetools_test_cache_dir'
+        await rm(dir, { recursive: true, force: true })
+        const root = join(__dirname, '__fixtures__')
+        await build({
+          root,
+          logLevel: 'warn',
+          build: { write: false },
+          plugins: [
+            testEntry(`
+                            import Image from "./pexels-allec-gomes-5195763.png?w=300"
+                            export default Image
+                        `),
+            imagetools({ cache: { dir } })
+          ]
+        })
+
+        const image = (await readdir(dir))[0]
+        expect(image).toBeTypeOf('string')
+      })
+    })
   })
 
   test('relative import', async () => {
@@ -511,6 +572,28 @@ describe('vite-imagetools', () => {
         imagetools()
       ]
     })) as RollupOutput | RollupOutput[]
+
+    const files = getFiles(bundle, '**.png') as OutputAsset[]
+    expect(files[0].source).toMatchImageSnapshot()
+  })
+
+  test('import with space in identifier and cache', async () => {
+    const dir = './node_modules/.cache/imagetools_test_import_with_space'
+    await rm(dir, { recursive: true, force: true })
+    const config: InlineConfig = {
+      root: join(__dirname, '__fixtures__'),
+      logLevel: 'warn',
+      build: { write: false },
+      plugins: [
+        testEntry(`
+                    import Image from "./with space.png?w=300"
+                    export default Image
+                `),
+        imagetools({ cache: { dir } })
+      ]
+    }
+    await build(config)
+    const bundle = (await build(config)) as RollupOutput | RollupOutput[]
 
     const files = getFiles(bundle, '**.png') as OutputAsset[]
     expect(files[0].source).toMatchImageSnapshot()

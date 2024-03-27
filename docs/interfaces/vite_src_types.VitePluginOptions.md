@@ -15,6 +15,8 @@
 - [include](vite_src_types.VitePluginOptions.md#include)
 - [removeMetadata](vite_src_types.VitePluginOptions.md#removemetadata)
 - [resolveConfigs](vite_src_types.VitePluginOptions.md#resolveconfigs)
+- [cacheRetention](vite_src_types.VitePluginOptions.md#cacheretention)
+- [cacheDir](vite_src_types.VitePluginOptions.md#cachedir)
 
 ## Properties
 
@@ -177,3 +179,19 @@ undefined
 #### Defined in
 
 [packages/vite/src/types.ts:79](https://github.com/JonasKruckenberg/imagetools/blob/4ebc88f/packages/vite/src/types.ts#L79)
+
+### cache
+
+• **cache**: [`CacheOptions`](./vite_src_types.CacheOptions.md)
+
+Options to enable caching of generated images.
+
+**`Default`**
+
+```ts
+undefined
+```
+
+#### Defined in
+
+[packages/vite/src/types.ts:97](https://github.com/JonasKruckenberg/imagetools/blob/4ebc88f/packages/vite/src/types.ts#L97)
