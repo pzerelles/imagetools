@@ -8,8 +8,8 @@ import { JSDOM } from 'jsdom'
 import sharp from 'sharp'
 import { afterEach, describe, test, expect, it, vi } from 'vitest'
 import { createBasePath } from '../utils'
-import { existsSync } from 'fs'
-import { rm, utimes, readdir } from 'fs/promises'
+import { existsSync } from 'node:fs'
+import { rm, utimes, readdir } from 'node:fs/promises'
 
 expect.extend({ toMatchImageSnapshot })
 
@@ -466,6 +466,7 @@ describe('vite-imagetools', () => {
         expect(window.__IMAGE__).toHaveProperty('hasAlpha')
       })
     })
+
     describe('cache.retention', () => {
       test('is used to clear cache with default 86400', async () => {
         const dir = './node_modules/.cache/imagetools_test_cache_retention'
@@ -497,6 +498,7 @@ describe('vite-imagetools', () => {
         expect(existsSync(`${dir}/${image_300}`)).toBe(false)
       })
     })
+
     describe('cache.dir', () => {
       test('is used', async () => {
         const dir = './node_modules/.cache/imagetools_test_cache_dir'

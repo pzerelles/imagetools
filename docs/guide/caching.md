@@ -5,7 +5,7 @@ If the source image changes, the cached images will be regenerated.
 
 ## How to configure caching
 
-Caching is enabled by default and uses './node_modules/.cache/imagetools' as cache directory. 
+Caching is enabled by default and uses './node_modules/.cache/imagetools' as the cache directory. 
 You can disable caching or change the directory with options.
 
 ```

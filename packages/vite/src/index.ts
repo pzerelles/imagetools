@@ -151,9 +151,8 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
           const res = await applyTransforms(transforms, img, pluginOptions.removeMetadata)
           metadata = res.metadata
           if (cacheOptions.enabled) {
-            const imagePath = `${cacheOptions.dir}/${id}`
+            imagePath = `${cacheOptions.dir}/${id}`
             await writeFile(imagePath, await res.image.toBuffer())
-            metadata.imagePath = imagePath
           } else {
             image = res.image
           }
@@ -165,7 +164,7 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
         } else {
           const fileHandle = this.emitFile({
             name: basename(pathname, extname(pathname)) + `.${metadata.format}`,
-            source: image ? await image.toBuffer() : await readFile(metadata.imagePath as string),
+            source: image ? await image.toBuffer() : await readFile(imagePath as string),
             type: 'asset'
           })
 
@@ -203,8 +202,6 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
 
           if (!metadata)
             throw new Error(`vite-imagetools cannot find image with id "${id}" this is likely an internal error`)
-
-          res.setHeader('Cache-Control', 'max-age=360000')
 
           if (!image) {
             res.setHeader('Content-Type', `image/${metadata.format}`)

@@ -1,5 +1,5 @@
 ---
-'vite-imagetools': patch
+'vite-imagetools': minor
 ---
 
 feat: caching of generated images

@@ -15,8 +15,7 @@
 - [include](vite_src_types.VitePluginOptions.md#include)
 - [removeMetadata](vite_src_types.VitePluginOptions.md#removemetadata)
 - [resolveConfigs](vite_src_types.VitePluginOptions.md#resolveconfigs)
-- [cacheRetention](vite_src_types.VitePluginOptions.md#cacheretention)
-- [cacheDir](vite_src_types.VitePluginOptions.md#cachedir)
+- [cache](vite_src_types.VitePluginOptions.md#cache)
 
 ## Properties
 
