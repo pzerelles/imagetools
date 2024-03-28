@@ -1,7 +1,7 @@
 import { basename, extname } from 'node:path'
 import { join } from 'node:path/posix'
 import { statSync, mkdirSync, createReadStream } from 'node:fs'
-import { utimes, writeFile, readFile, opendir, stat, rm } from 'node:fs/promises'
+import { writeFile, readFile, opendir, stat, rm } from 'node:fs/promises'
 import type { Plugin, ResolvedConfig } from 'vite'
 import {
   applyTransforms,
@@ -47,7 +47,7 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
   const cacheOptions = {
     enabled: pluginOptions.cache?.enabled ?? true,
     dir: pluginOptions.cache?.dir ?? './node_modules/.cache/imagetools',
-    retention: pluginOptions.cache?.retention ?? 86400
+    retention: pluginOptions.cache?.retention
   }
   mkdirSync(`${cacheOptions.dir}`, { recursive: true })
 
@@ -62,7 +62,7 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
   let viteConfig: ResolvedConfig
   let basePath: string
 
-  const generatedImages = new Map<string, { image?: Sharp; metadata: ImageMetadata }>()
+  const generatedImages = new Map<string, { image?: Sharp; imagePath?: string; metadata: ImageMetadata }>()
 
   return {
     name: 'imagetools',
@@ -141,30 +141,26 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
         let metadata: ImageMetadata
 
         if (cacheOptions.enabled && (statSync(`${cacheOptions.dir}/${id}`, { throwIfNoEntry: false })?.size ?? 0) > 0) {
-          const imagePath = `${cacheOptions.dir}/${id}`
-          metadata = (await sharp(imagePath).metadata()) as ImageMetadata
-          metadata.imagePath = imagePath
-          const date = new Date()
-          utimes(imagePath, date, date)
+          metadata = (await sharp(`${cacheOptions.dir}/${id}`).metadata()) as ImageMetadata
         } else {
           const { transforms } = generateTransforms(config, transformFactories, srcURL.searchParams, logger)
           const res = await applyTransforms(transforms, img, pluginOptions.removeMetadata)
           metadata = res.metadata
           if (cacheOptions.enabled) {
-            imagePath = `${cacheOptions.dir}/${id}`
-            await writeFile(imagePath, await res.image.toBuffer())
+            await writeFile(`${cacheOptions.dir}/${id}`, await res.image.toBuffer())
           } else {
             image = res.image
           }
         }
 
+        generatedImages.set(id, { image, metadata })
+
         if (viteConfig.command === 'serve') {
-          generatedImages.set(id, { image, metadata })
           metadata.src = join(viteConfig?.server?.origin ?? '', basePath) + id
         } else {
           const fileHandle = this.emitFile({
             name: basename(pathname, extname(pathname)) + `.${metadata.format}`,
-            source: image ? await image.toBuffer() : await readFile(imagePath as string),
+            source: image ? await image.toBuffer() : await readFile(`${cacheOptions.dir}/${id}`),
             type: 'asset'
           })
 
@@ -205,7 +201,7 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
 
           if (!image) {
             res.setHeader('Content-Type', `image/${metadata.format}`)
-            return createReadStream(metadata.imagePath as string).pipe(res)
+            return createReadStream(`${cacheOptions.dir}/${id}`).pipe(res)
           }
 
           if (pluginOptions.removeMetadata === false) {
@@ -221,12 +217,16 @@ export function imagetools(userOptions: Partial<VitePluginOptions> = {}): Plugin
     },
 
     async buildEnd(error) {
-      if (!error && cacheOptions.enabled && cacheOptions.retention && viteConfig.command !== 'serve') {
+      if (!error && cacheOptions.enabled && cacheOptions.retention !== undefined && viteConfig.command !== 'serve') {
         const dir = await opendir(cacheOptions.dir)
+
         for await (const dirent of dir) {
           if (dirent.isFile()) {
+            if (generatedImages.has(dirent.name)) continue
+
             const imagePath = `${cacheOptions.dir}/${dirent.name}`
             const stats = await stat(imagePath)
+
             if (Date.now() - stats.mtimeMs > cacheOptions.retention * 1000) {
               console.debug(`deleting stale cached image ${dirent.name}`)
               await rm(imagePath)

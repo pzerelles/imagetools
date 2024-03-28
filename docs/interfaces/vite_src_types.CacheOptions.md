@@ -55,7 +55,7 @@ After what time an unused image will be removed from the cache.
 **`Default`**
 
 ```ts
-86400
+undefined
 ```
 
 #### Defined in

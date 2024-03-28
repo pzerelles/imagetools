@@ -468,7 +468,7 @@ describe('vite-imagetools', () => {
     })
 
     describe('cache.retention', () => {
-      test('is used to clear cache with default 86400', async () => {
+      test('is used to clear cache with retention of 86400', async () => {
         const dir = './node_modules/.cache/imagetools_test_cache_retention'
         await rm(dir, { recursive: true, force: true })
         const root = join(__dirname, '__fixtures__')
@@ -481,7 +481,7 @@ describe('vite-imagetools', () => {
                             import Image from "./pexels-allec-gomes-5195763.png?w=${width}"
                             export default Image
                         `),
-            imagetools({ cache: { dir } })
+            imagetools({ cache: { dir, retention: 86400 } })
           ]
         })
         await build(config(300))
@@ -489,13 +489,15 @@ describe('vite-imagetools', () => {
         expect(image_300).toBeTypeOf('string')
 
         await build(config(200))
-        const image_200 = (await readdir(dir)).find((name) => name !== image_300)?.[0]
+        const image_200 = (await readdir(dir)).find((name) => name !== image_300)
         expect(image_200).toBeTypeOf('string')
 
         const date = new Date(Date.now() - 86400000)
         await utimes(`${dir}/${image_300}`, date, date)
+        await utimes(`${dir}/${image_200}`, date, date)
         await build(config(200))
         expect(existsSync(`${dir}/${image_300}`)).toBe(false)
+        expect(existsSync(`${dir}/${image_200}`)).toBe(true)
       })
     })
 

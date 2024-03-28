@@ -109,7 +109,7 @@ export interface CacheOptions {
   dir?: string
 
   /**
-   * For how many seconds to keep transformed images cached. Default is 86400. To disable cache specify 0.
+   * For how many seconds to keep transformed images cached. Default is undefined, which keeps the images forever.
    */
   retention?: number
 }

@@ -27,7 +27,7 @@ You can disable caching or change the directory with options.
 
 When an image is no longer there or the transformation parameters change, the previously
 cached images will be removed after a configurable retention period.
-The default retention is 1 day (86400 seconds). A value of 0 will disable this mechanism.
+A value of `undefined` will disable this mechanism, which is the default.
 
 ```
 // vite.config.js, etc
